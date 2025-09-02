@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using PhotoManager.App.ViewModels;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -19,6 +20,8 @@ namespace PhotoManager.App
         public MainWindow()
         {
             InitializeComponent();
+
+            DataContext = new PhotoGalleryViewModel();
         }
     }
 }
