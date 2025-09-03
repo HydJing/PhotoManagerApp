@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include=".gitignore" />
+    <None Include=".gitignore" />
   </ItemGroup>
 
   <ItemGroup>
