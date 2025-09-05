@@ -10,37 +10,61 @@ namespace PhotoManager.App.ViewModels
     public partial class PhotoGalleryViewModel : ObservableObject
     {
         [ObservableProperty]
-        private ObservableCollection<Photo> photos = new();  // initialized (never null)
+        private string? selectedDirectory;
 
         [ObservableProperty]
-        private string statusMessage = string.Empty;         // initialized (never null)
+        private string statusMessage = "Select a folder to load photos.";
 
-        [RelayCommand]
-        private async Task LoadPhotosAsync(string directoryPath)
+        [ObservableProperty]
+        private ObservableCollection<Photo> photos = new();
+
+        public IRelayCommand LoadPhotosCommand { get; }
+
+        public PhotoGalleryViewModel()
         {
-            if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
+            LoadPhotosCommand = new RelayCommand(ChooseAndLoadPhotos);
+        }
+
+        private void ChooseAndLoadPhotos()
+        {
+            System.Diagnostics.Debug.WriteLine("Browse button clicked!");
+
+            var dialog = new Microsoft.WindowsAPICodePack.Dialogs.CommonOpenFileDialog
             {
-                StatusMessage = "Directory not found.";
+                IsFolderPicker = true,
+                Title = "Select a folder containing photos"
+            };
+
+            var result = dialog.ShowDialog(System.Windows.Application.Current.MainWindow);
+
+            if (result == Microsoft.WindowsAPICodePack.Dialogs.CommonFileDialogResult.Ok)
+            {
+                SelectedDirectory = dialog.FileName;
+                LoadPhotos(SelectedDirectory);
+            }
+        }
+
+        private void LoadPhotos(string directory)
+        {
+            if (!Directory.Exists(directory))
+            {
+                StatusMessage = "Directory does not exist.";
                 return;
             }
 
-            StatusMessage = "Loading photos...";
             Photos.Clear();
 
-            var files = Directory.GetFiles(directoryPath, "*.*", SearchOption.TopDirectoryOnly);
-            foreach (var file in files)
+            foreach (var file in Directory.EnumerateFiles(directory, "*.*")
+                         .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                                     f.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                                     f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase)))
             {
-                if (file.EndsWith(".jpg", System.StringComparison.OrdinalIgnoreCase) ||
-                    file.EndsWith(".jpeg", System.StringComparison.OrdinalIgnoreCase) ||
-                    file.EndsWith(".png", System.StringComparison.OrdinalIgnoreCase) ||
-                    file.EndsWith(".bmp", System.StringComparison.OrdinalIgnoreCase))
-                {
-                    var photo = await Task.Run(() => new Photo { FilePath = file });
-                    Photos.Add(photo);
-                }
+                Photos.Add(new Photo { FilePath = file });
             }
 
-            StatusMessage = $"Loaded {Photos.Count} photos.";
+            StatusMessage = Photos.Count > 0
+                ? $"Loaded {Photos.Count} photos from {directory}"
+                : "No photos found in the selected folder.";
         }
     }
 }
