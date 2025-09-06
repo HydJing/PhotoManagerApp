@@ -54,17 +54,33 @@ namespace PhotoManager.App.ViewModels
 
             Photos.Clear();
 
-            foreach (var file in Directory.EnumerateFiles(directory, "*.*")
-                         .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
-                                     f.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
-                                     f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase)))
+            try
             {
-                Photos.Add(new Photo { FilePath = file });
-            }
+                var files = Directory.EnumerateFiles(directory, "*.*", SearchOption.AllDirectories)
+                    .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                                f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                                f.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                                f.EndsWith(".bmp", StringComparison.OrdinalIgnoreCase) ||
+                                f.EndsWith(".gif", StringComparison.OrdinalIgnoreCase));
 
-            StatusMessage = Photos.Count > 0
-                ? $"Loaded {Photos.Count} photos from {directory}"
-                : "No photos found in the selected folder.";
+                foreach (var file in files)
+                {
+                    Photos.Add(new Photo { FilePath = file });
+                }
+
+                StatusMessage = Photos.Count > 0
+                    ? $"Loaded {Photos.Count} photos from {directory} (including subfolders)"
+                    : "No photos found in the selected folder or subfolders.";
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                StatusMessage = $"Access denied: {ex.Message}";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error while loading photos: {ex.Message}";
+            }
         }
+
     }
 }

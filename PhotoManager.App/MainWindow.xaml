@@ -2,30 +2,49 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Photo Manager"
-        Height="450" Width="800">
-    <Grid Margin="10">
+        Height="600" Width="900">
+
+  <!-- Main grid with 2 columns -->
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <!-- Left sidebar -->
+      <ColumnDefinition Width="200"/>
+      <!-- Right main content -->
+      <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+
+    <!-- Left Sidebar -->
+    <StackPanel Grid.Column="0" Background="#FF2D2D30" >
+      <TextBlock Text="Library" Foreground="White" FontSize="16" FontWeight="Bold" Margin="10,20,0,10"/>
+      <TextBlock Text="Favorite" Foreground="White" FontSize="16" FontWeight="Bold" Margin="10,10,0,10"/>
+    </StackPanel>
+
+    <!-- Right Main Content -->
+    <Grid Grid.Column="1" Margin="10">
       <Grid.RowDefinitions>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="*"/>
-          <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <!-- Folder selection -->
+        <RowDefinition Height="*"/>
+        <!-- Photo gallery -->
+        <RowDefinition Height="Auto"/>
+        <!-- Status bar -->
       </Grid.RowDefinitions>
 
-
+      <!-- Folder selection row -->
       <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,5" VerticalAlignment="Center">
         <Button Content="Browse Photos" Command="{Binding LoadPhotosCommand}" Margin="0,0,10,0"/>
-        <TextBlock Text="{Binding SelectedDirectory}"
-                   Width="600" TextTrimming="CharacterEllipsis"
+        <TextBlock Text="{Binding SelectedDirectory}" Width="600" TextTrimming="CharacterEllipsis"
                    VerticalAlignment="Center"/>
       </StackPanel>
 
-      <ScrollViewer Grid.Row="1" Margin="5">
+      <!-- Photo gallery row -->
+      <ScrollViewer Grid.Row="1">
         <ItemsControl ItemsSource="{Binding Photos}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-              <WrapPanel IsItemsHost="True" />
+              <WrapPanel IsItemsHost="True"/>
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
-
           <ItemsControl.ItemTemplate>
             <DataTemplate>
               <Border BorderBrush="Gray" BorderThickness="1" Margin="5">
@@ -36,10 +55,12 @@
         </ItemsControl>
       </ScrollViewer>
 
+      <!-- Status bar row -->
       <StatusBar Grid.Row="2" VerticalAlignment="Bottom">
         <StatusBarItem>
           <TextBlock Text="{Binding StatusMessage}" />
         </StatusBarItem>
       </StatusBar>
     </Grid>
+  </Grid>
 </Window>
