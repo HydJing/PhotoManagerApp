@@ -4,6 +4,8 @@ using PhotoManager.App.Models;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Threading.Tasks;
+using System.Linq;
+using System.Windows.Input;
 
 namespace PhotoManager.App.ViewModels
 {
@@ -19,10 +21,14 @@ namespace PhotoManager.App.ViewModels
         private ObservableCollection<Photo> photos = new();
 
         public IRelayCommand LoadPhotosCommand { get; }
+        public ICommand DeletePhotosCommand { get; }
+
 
         public PhotoGalleryViewModel()
         {
+            Photos = new ObservableCollection<Photo>();
             LoadPhotosCommand = new RelayCommand(ChooseAndLoadPhotos);
+            DeletePhotosCommand = new RelayCommand(DeleteSelectedPhotos, () => Photos.Any(p => p.IsSelected));
         }
 
         private void ChooseAndLoadPhotos()
@@ -80,6 +86,37 @@ namespace PhotoManager.App.ViewModels
             {
                 StatusMessage = $"Error while loading photos: {ex.Message}";
             }
+        }
+
+        private void DeleteSelectedPhotos()
+        {
+            var selected = Photos.Where(p => p.IsSelected).ToList();
+            if (!selected.Any())
+            {
+                StatusMessage = "No photos selected for deletion.";
+                return;
+            }
+
+            int deletedCount = 0;
+
+            foreach (var photo in selected)
+            {
+                try
+                {
+                    if (File.Exists(photo.FilePath))
+                    {
+                        File.Delete(photo.FilePath);
+                    }
+                    Photos.Remove(photo);
+                    deletedCount++;
+                }
+                catch (Exception ex)
+                {
+                    StatusMessage = $"Error deleting {photo.FilePath}: {ex.Message}";
+                }
+            }
+
+            StatusMessage = $"Deleted {deletedCount} photo(s).";
         }
 
     }

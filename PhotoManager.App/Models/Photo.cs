@@ -4,5 +4,6 @@
     {
         public string FilePath { get; set; } = string.Empty; // initialized to avoid null warning
         public string FileName => System.IO.Path.GetFileName(FilePath);
+        public bool IsSelected { get; set; }
     }
 }

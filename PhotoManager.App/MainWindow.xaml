@@ -33,6 +33,7 @@
       <!-- Folder selection row -->
       <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,5" VerticalAlignment="Center">
         <Button Content="Browse Photos" Command="{Binding LoadPhotosCommand}" Margin="0,0,10,0"/>
+        <Button Content="Delete Selected" Command="{Binding DeletePhotosCommand}" Margin="0,0,10,0"/>
         <TextBlock Text="{Binding SelectedDirectory}" Width="600" TextTrimming="CharacterEllipsis"
                    VerticalAlignment="Center"/>
       </StackPanel>
@@ -47,9 +48,13 @@
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
             <DataTemplate>
-              <Border BorderBrush="Gray" BorderThickness="1" Margin="5">
-                <Image Source="{Binding FilePath}" Width="100" Height="100" Stretch="UniformToFill"/>
-              </Border>
+              <StackPanel Margin="5">
+                <!-- Checkbox for selection -->
+                <CheckBox IsChecked="{Binding IsSelected}" HorizontalAlignment="Center"/>
+                <Border BorderBrush="Gray" BorderThickness="1" Margin="0,5,0,0">
+                  <Image Source="{Binding FilePath}" Width="100" Height="100" Stretch="UniformToFill"/>
+                </Border>
+              </StackPanel>
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
