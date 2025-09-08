@@ -10,6 +10,10 @@ namespace PhotoManager.App.Models
         [ObservableProperty] private string filePath = string.Empty;
         [ObservableProperty] private bool isSelected;
         [ObservableProperty] private ImageSource? thumbnail;
+        [ObservableProperty] private string fileName = string.Empty;
+        [ObservableProperty] private string fileSize = string.Empty;
+        [ObservableProperty] private string dimensions = string.Empty;
+        [ObservableProperty] private bool isFavorite;
 
         public void LoadThumbnail()
         {
@@ -17,13 +21,20 @@ namespace PhotoManager.App.Models
 
             var bitmap = new BitmapImage();
             bitmap.BeginInit();
-            bitmap.CacheOption = BitmapCacheOption.OnLoad; // ensures file is closed after loading
+            bitmap.CacheOption = BitmapCacheOption.OnLoad; // closes file after load
             bitmap.UriSource = new Uri(FilePath);
-            bitmap.DecodePixelWidth = 200; // scale down for thumbnails
+            bitmap.DecodePixelWidth = 200;
             bitmap.EndInit();
-            bitmap.Freeze(); // make it cross-thread & read-only
+            bitmap.Freeze();
 
             Thumbnail = bitmap;
+
+            FileName = Path.GetFileName(FilePath);
+
+            var info = new FileInfo(FilePath);
+            FileSize = $"{info.Length / 1024.0:0.0} KB";
+
+            Dimensions = $"{bitmap.PixelWidth}×{bitmap.PixelHeight}";
         }
     }
 }

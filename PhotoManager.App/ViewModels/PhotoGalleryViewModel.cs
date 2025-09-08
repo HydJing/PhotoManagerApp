@@ -9,6 +9,7 @@ using System.Windows.Input;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using Microsoft.VisualBasic.FileIO;
+using System.Windows.Data;
 
 
 namespace PhotoManager.App.ViewModels
@@ -27,6 +28,14 @@ namespace PhotoManager.App.ViewModels
         public IRelayCommand LoadPhotosCommand { get; }
         public IRelayCommand DeletePhotosCommand { get; }
 
+        public ObservableCollection<string> MenuItems { get; }
+            = new ObservableCollection<string> { "Library", "Favorite" };
+
+        [ObservableProperty]
+        private string selectedMenu = "Library";  // default selected
+
+        public ICollectionView PhotosView { get; }
+
 
         public PhotoGalleryViewModel()
         {
@@ -36,6 +45,9 @@ namespace PhotoManager.App.ViewModels
 
             // react to add/remove so we can hook IsSelected changes
             Photos.CollectionChanged += Photos_CollectionChanged;
+
+            PhotosView = CollectionViewSource.GetDefaultView(Photos);
+            PhotosView.Filter = FilterPhotos;
         }
 
         private bool CanDeleteSelectedPhotos() => Photos.Any(p => p.IsSelected);
@@ -58,6 +70,9 @@ namespace PhotoManager.App.ViewModels
         {
             if (e.PropertyName == nameof(Photo.IsSelected))
                 DeletePhotosCommand.NotifyCanExecuteChanged();
+
+            if (e.PropertyName == nameof(Photo.IsFavorite))
+                PhotosView.Refresh(); // re-run filter so Favorites view updates instantly
         }
 
         private void ChooseAndLoadPhotos()
@@ -160,6 +175,22 @@ namespace PhotoManager.App.ViewModels
 
             StatusMessage = $"Moved {deletedCount} photo(s) to Recycle Bin.";
             DeletePhotosCommand.NotifyCanExecuteChanged();
+        }
+
+        partial void OnSelectedMenuChanged(string value)
+        {
+            PhotosView.Refresh(); // re-run filter when sidebar changes
+        }
+
+        private bool FilterPhotos(object obj)
+        {
+            if (obj is not Photo photo) return false;
+
+            return SelectedMenu switch
+            {
+                "Favorite" => photo.IsFavorite,
+                _ => true // Library shows all
+            };
         }
 
     }
