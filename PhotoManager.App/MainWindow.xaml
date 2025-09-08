@@ -14,7 +14,7 @@
     </Grid.ColumnDefinitions>
 
     <!-- Left Sidebar -->
-    <StackPanel Grid.Column="0" Background="#FF2D2D30" >
+    <StackPanel Grid.Column="0" Background="#FF2D2D30">
       <TextBlock Text="Library" Foreground="White" FontSize="16" FontWeight="Bold" Margin="10,20,0,10"/>
       <TextBlock Text="Favorite" Foreground="White" FontSize="16" FontWeight="Bold" Margin="10,10,0,10"/>
     </StackPanel>
@@ -34,8 +34,8 @@
       <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,5" VerticalAlignment="Center">
         <Button Content="Browse Photos" Command="{Binding LoadPhotosCommand}" Margin="0,0,10,0"/>
         <Button Content="Delete Selected" Command="{Binding DeletePhotosCommand}" Margin="0,0,10,0"/>
-        <TextBlock Text="{Binding SelectedDirectory}" Width="600" TextTrimming="CharacterEllipsis"
-                   VerticalAlignment="Center"/>
+        <TextBlock Text="{Binding SelectedDirectory}" VerticalAlignment="Center"
+                   TextTrimming="CharacterEllipsis" Width="400"/>
       </StackPanel>
 
       <!-- Photo gallery row -->
@@ -48,13 +48,22 @@
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
             <DataTemplate>
-              <StackPanel Margin="5">
-                <!-- Checkbox for selection -->
-                <CheckBox IsChecked="{Binding IsSelected}" HorizontalAlignment="Center"/>
-                <Border BorderBrush="Gray" BorderThickness="1" Margin="0,5,0,0">
-                  <Image Source="{Binding FilePath}" Width="100" Height="100" Stretch="UniformToFill"/>
+              <!-- Overlay layout for photo + checkbox -->
+              <Grid Margin="5" Width="100" Height="100">
+                <Border BorderBrush="Gray" BorderThickness="1">
+                  <Image Source="{Binding Thumbnail}"
+                         Stretch="UniformToFill"/>
                 </Border>
-              </StackPanel>
+
+                <!-- Checkbox overlay -->
+                <CheckBox IsChecked="{Binding IsSelected}"
+                          HorizontalAlignment="Left"
+                          VerticalAlignment="Top"
+                          Margin="3"
+                          Background="White"
+                          Opacity="0.8"
+                          ToolTip="Select photo"/>
+              </Grid>
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>

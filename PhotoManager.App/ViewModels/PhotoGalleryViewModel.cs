@@ -6,6 +6,10 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Linq;
 using System.Windows.Input;
+using System.Collections.Specialized;
+using System.ComponentModel;
+using Microsoft.VisualBasic.FileIO;
+
 
 namespace PhotoManager.App.ViewModels
 {
@@ -18,10 +22,10 @@ namespace PhotoManager.App.ViewModels
         private string statusMessage = "Select a folder to load photos.";
 
         [ObservableProperty]
-        private ObservableCollection<Photo> photos = new();
+        public ObservableCollection<Photo> photos = new();
 
         public IRelayCommand LoadPhotosCommand { get; }
-        public ICommand DeletePhotosCommand { get; }
+        public IRelayCommand DeletePhotosCommand { get; }
 
 
         public PhotoGalleryViewModel()
@@ -29,6 +33,31 @@ namespace PhotoManager.App.ViewModels
             Photos = new ObservableCollection<Photo>();
             LoadPhotosCommand = new RelayCommand(ChooseAndLoadPhotos);
             DeletePhotosCommand = new RelayCommand(DeleteSelectedPhotos, () => Photos.Any(p => p.IsSelected));
+
+            // react to add/remove so we can hook IsSelected changes
+            Photos.CollectionChanged += Photos_CollectionChanged;
+        }
+
+        private bool CanDeleteSelectedPhotos() => Photos.Any(p => p.IsSelected);
+
+        private void Photos_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.NewItems != null)
+                foreach (Photo p in e.NewItems)
+                    p.PropertyChanged += Photo_PropertyChanged;
+
+            if (e.OldItems != null)
+                foreach (Photo p in e.OldItems)
+                    p.PropertyChanged -= Photo_PropertyChanged;
+
+            // reevaluate after collection changes
+            DeletePhotosCommand.NotifyCanExecuteChanged();
+        }
+
+        private void Photo_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(Photo.IsSelected))
+                DeletePhotosCommand.NotifyCanExecuteChanged();
         }
 
         private void ChooseAndLoadPhotos()
@@ -50,7 +79,7 @@ namespace PhotoManager.App.ViewModels
             }
         }
 
-        private void LoadPhotos(string directory)
+        private async void LoadPhotos(string directory)
         {
             if (!Directory.Exists(directory))
             {
@@ -59,20 +88,30 @@ namespace PhotoManager.App.ViewModels
             }
 
             Photos.Clear();
+            StatusMessage = "Loading photos...";
 
             try
             {
-                var files = Directory.EnumerateFiles(directory, "*.*", SearchOption.AllDirectories)
+                var files = Directory.EnumerateFiles(directory, "*.*", System.IO.SearchOption.AllDirectories)
                     .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
                                 f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
                                 f.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
                                 f.EndsWith(".bmp", StringComparison.OrdinalIgnoreCase) ||
                                 f.EndsWith(".gif", StringComparison.OrdinalIgnoreCase));
 
-                foreach (var file in files)
+                await Task.Run(() =>
                 {
-                    Photos.Add(new Photo { FilePath = file });
-                }
+                    foreach (var file in files)
+                    {
+                        var photo = new Photo { FilePath = file };
+                        photo.LoadThumbnail(); // load into memory, release file handle
+
+                        // Add to collection on UI thread
+                        App.Current.Dispatcher.Invoke(() => Photos.Add(photo));
+
+                    }
+                });
+                
 
                 StatusMessage = Photos.Count > 0
                     ? $"Loaded {Photos.Count} photos from {directory} (including subfolders)"
@@ -98,15 +137,18 @@ namespace PhotoManager.App.ViewModels
             }
 
             int deletedCount = 0;
-
             foreach (var photo in selected)
             {
                 try
                 {
                     if (File.Exists(photo.FilePath))
                     {
-                        File.Delete(photo.FilePath);
+                        FileSystem.DeleteFile(
+                            photo.FilePath,
+                            UIOption.OnlyErrorDialogs,
+                            RecycleOption.SendToRecycleBin);
                     }
+
                     Photos.Remove(photo);
                     deletedCount++;
                 }
@@ -116,7 +158,8 @@ namespace PhotoManager.App.ViewModels
                 }
             }
 
-            StatusMessage = $"Deleted {deletedCount} photo(s).";
+            StatusMessage = $"Moved {deletedCount} photo(s) to Recycle Bin.";
+            DeletePhotosCommand.NotifyCanExecuteChanged();
         }
 
     }

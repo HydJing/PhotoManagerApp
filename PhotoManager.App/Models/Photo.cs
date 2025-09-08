@@ -1,9 +1,29 @@
-﻿namespace PhotoManager.App.Models
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using System.IO;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+
+namespace PhotoManager.App.Models
 {
-    public class Photo
+    public partial class Photo : ObservableObject
     {
-        public string FilePath { get; set; } = string.Empty; // initialized to avoid null warning
-        public string FileName => System.IO.Path.GetFileName(FilePath);
-        public bool IsSelected { get; set; }
+        [ObservableProperty] private string filePath = string.Empty;
+        [ObservableProperty] private bool isSelected;
+        [ObservableProperty] private ImageSource? thumbnail;
+
+        public void LoadThumbnail()
+        {
+            if (!File.Exists(FilePath)) return;
+
+            var bitmap = new BitmapImage();
+            bitmap.BeginInit();
+            bitmap.CacheOption = BitmapCacheOption.OnLoad; // ensures file is closed after loading
+            bitmap.UriSource = new Uri(FilePath);
+            bitmap.DecodePixelWidth = 200; // scale down for thumbnails
+            bitmap.EndInit();
+            bitmap.Freeze(); // make it cross-thread & read-only
+
+            Thumbnail = bitmap;
+        }
     }
 }
