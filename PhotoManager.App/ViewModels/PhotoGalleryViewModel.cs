@@ -8,8 +8,10 @@ using System.Linq;
 using System.Windows.Input;
 using System.Collections.Specialized;
 using System.ComponentModel;
-using Microsoft.VisualBasic.FileIO;
 using System.Windows.Data;
+using PhotoManager.App.Services;
+using System.Collections.Generic;
+using PhotoManager.App.Helpers;
 
 
 namespace PhotoManager.App.ViewModels
@@ -36,6 +38,9 @@ namespace PhotoManager.App.ViewModels
 
         public ICollectionView PhotosView { get; }
 
+        private readonly FavoriteService _favoriteService;
+        private readonly HashSet<string> _favorites;
+
 
         public PhotoGalleryViewModel()
         {
@@ -45,6 +50,12 @@ namespace PhotoManager.App.ViewModels
 
             // react to add/remove so we can hook IsSelected changes
             Photos.CollectionChanged += Photos_CollectionChanged;
+
+            PhotosView = CollectionViewSource.GetDefaultView(Photos);
+            PhotosView.Filter = FilterPhotos;
+
+            _favoriteService = new FavoriteService();
+            _favorites = _favoriteService.LoadFavorites();
 
             PhotosView = CollectionViewSource.GetDefaultView(Photos);
             PhotosView.Filter = FilterPhotos;
@@ -68,6 +79,20 @@ namespace PhotoManager.App.ViewModels
 
         private void Photo_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
+
+            if (sender is not Photo photo) return;
+
+            if (e.PropertyName == nameof(Photo.IsFavorite))
+            {
+                if (photo.IsFavorite)
+                    _favorites.Add(photo.FilePath);
+                else
+                    _favorites.Remove(photo.FilePath);
+
+                _favoriteService.SaveFavorites(_favorites);
+                PhotosView.Refresh();
+            }
+
             if (e.PropertyName == nameof(Photo.IsSelected))
                 DeletePhotosCommand.NotifyCanExecuteChanged();
 
@@ -107,19 +132,23 @@ namespace PhotoManager.App.ViewModels
 
             try
             {
+                var supportedExtensions = new[] { ".jpg", ".jpeg", ".png", ".bmp", ".gif" };
+
                 var files = Directory.EnumerateFiles(directory, "*.*", System.IO.SearchOption.AllDirectories)
-                    .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
-                                f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
-                                f.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
-                                f.EndsWith(".bmp", StringComparison.OrdinalIgnoreCase) ||
-                                f.EndsWith(".gif", StringComparison.OrdinalIgnoreCase));
+                    .Where(f => supportedExtensions.Contains(Path.GetExtension(f).ToLower()));
 
                 await Task.Run(() =>
                 {
                     foreach (var file in files)
                     {
-                        var photo = new Photo { FilePath = file };
+                        var photo = new Photo
+                        {
+                            FilePath = file,
+                            FileName = Path.GetFileName(file),
+                            IsFavorite = _favorites.Contains(file)
+                        };
                         photo.LoadThumbnail(); // load into memory, release file handle
+                        photo.PropertyChanged += Photo_PropertyChanged;
 
                         // Add to collection on UI thread
                         App.Current.Dispatcher.Invoke(() => Photos.Add(photo));
@@ -158,10 +187,7 @@ namespace PhotoManager.App.ViewModels
                 {
                     if (File.Exists(photo.FilePath))
                     {
-                        FileSystem.DeleteFile(
-                            photo.FilePath,
-                            UIOption.OnlyErrorDialogs,
-                            RecycleOption.SendToRecycleBin);
+                        RecycleBinHelper.MoveToRecycleBin(photo.FilePath);
                     }
 
                     Photos.Remove(photo);
@@ -177,6 +203,7 @@ namespace PhotoManager.App.ViewModels
             DeletePhotosCommand.NotifyCanExecuteChanged();
         }
 
+
         partial void OnSelectedMenuChanged(string value)
         {
             PhotosView.Refresh(); // re-run filter when sidebar changes
@@ -191,6 +218,24 @@ namespace PhotoManager.App.ViewModels
                 "Favorite" => photo.IsFavorite,
                 _ => true // Library shows all
             };
+        }
+
+        private void LoadPhotosFromDirectory(string folderPath)
+        {
+            // When loading, check if each photo path is in favorites
+            foreach (var file in Directory.EnumerateFiles(folderPath, "*.*", SearchOption.AllDirectories))
+            {
+                var photo = new Photo
+                {
+                    FilePath = file,
+                    FileName = Path.GetFileName(file),
+                    // ... set FileSize, Dimensions, Thumbnail
+                    IsFavorite = _favorites.Contains(file)   // Restore favorite state
+                };
+
+                photo.PropertyChanged += Photo_PropertyChanged;
+                Photos.Add(photo);
+            }
         }
 
     }
