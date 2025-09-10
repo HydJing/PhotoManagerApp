@@ -6,30 +6,28 @@ namespace PhotoManager.App.Services
 {
     public class FavoriteService
     {
-        private readonly string _favoritesFile;
+        private readonly string _filePath;
 
         public FavoriteService()
         {
-            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            string appFolder = Path.Combine(appData, "PhotoManager");
-            Directory.CreateDirectory(appFolder);
-
-            _favoritesFile = Path.Combine(appFolder, "favorites.json");
+            var appData = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "PhotoManager");
+            Directory.CreateDirectory(appData);
+            _filePath = Path.Combine(appData, "favorites.json");
         }
 
         public HashSet<string> LoadFavorites()
         {
-            if (!File.Exists(_favoritesFile))
-                return new HashSet<string>();
-
-            string json = File.ReadAllText(_favoritesFile);
+            if (!File.Exists(_filePath)) return new HashSet<string>();
+            var json = File.ReadAllText(_filePath);
             return JsonSerializer.Deserialize<HashSet<string>>(json) ?? new HashSet<string>();
         }
 
         public void SaveFavorites(HashSet<string> favorites)
         {
-            string json = JsonSerializer.Serialize(favorites, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(_favoritesFile, json);
+            var json = JsonSerializer.Serialize(favorites, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(_filePath, json);
         }
     }
 }

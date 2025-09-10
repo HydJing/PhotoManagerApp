@@ -1,69 +1,52 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PhotoManager.App.Models;
-using System.Collections.ObjectModel;
-using System.IO;
-using System.Threading.Tasks;
-using System.Linq;
-using System.Windows.Input;
-using System.Collections.Specialized;
-using System.ComponentModel;
-using System.Windows.Data;
 using PhotoManager.App.Services;
-using System.Collections.Generic;
 using PhotoManager.App.Helpers;
-
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows.Data;
 
 namespace PhotoManager.App.ViewModels
 {
     public partial class PhotoGalleryViewModel : ObservableObject
     {
         [ObservableProperty]
-        private string? selectedDirectory;
+        private ObservableCollection<Photo> photos = new();
+
+        [ObservableProperty]
+        private string selectedDirectory;
 
         [ObservableProperty]
         private string statusMessage = "Select a folder to load photos.";
 
-        [ObservableProperty]
-        public ObservableCollection<Photo> photos = new();
+        public ICollectionView PhotosView { get; }
 
         public IRelayCommand LoadPhotosCommand { get; }
         public IRelayCommand DeletePhotosCommand { get; }
 
-        public ObservableCollection<string> MenuItems { get; }
-            = new ObservableCollection<string> { "Library", "Favorite" };
-
-        [ObservableProperty]
-        private string selectedMenu = "Library";  // default selected
-
-        public ICollectionView PhotosView { get; }
-
         private readonly FavoriteService _favoriteService;
         private readonly HashSet<string> _favorites;
 
-
         public PhotoGalleryViewModel()
         {
-            Photos = new ObservableCollection<Photo>();
-            LoadPhotosCommand = new RelayCommand(ChooseAndLoadPhotos);
-            DeletePhotosCommand = new RelayCommand(DeleteSelectedPhotos, () => Photos.Any(p => p.IsSelected));
-
-            // react to add/remove so we can hook IsSelected changes
-            Photos.CollectionChanged += Photos_CollectionChanged;
-
-            PhotosView = CollectionViewSource.GetDefaultView(Photos);
-            PhotosView.Filter = FilterPhotos;
-
             _favoriteService = new FavoriteService();
             _favorites = _favoriteService.LoadFavorites();
 
             PhotosView = CollectionViewSource.GetDefaultView(Photos);
             PhotosView.Filter = FilterPhotos;
+
+            LoadPhotosCommand = new RelayCommand(ChooseAndLoadPhotos);
+            DeletePhotosCommand = new RelayCommand(DeleteSelectedPhotos, CanDeleteSelectedPhotos);
+
+            Photos.CollectionChanged += Photos_CollectionChanged;
         }
 
-        private bool CanDeleteSelectedPhotos() => Photos.Any(p => p.IsSelected);
 
-        private void Photos_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        private void Photos_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
             if (e.NewItems != null)
                 foreach (Photo p in e.NewItems)
@@ -73,37 +56,37 @@ namespace PhotoManager.App.ViewModels
                 foreach (Photo p in e.OldItems)
                     p.PropertyChanged -= Photo_PropertyChanged;
 
-            // reevaluate after collection changes
             DeletePhotosCommand.NotifyCanExecuteChanged();
         }
 
         private void Photo_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-
             if (sender is not Photo photo) return;
 
-            if (e.PropertyName == nameof(Photo.IsFavorite))
+            switch (e.PropertyName)
             {
-                if (photo.IsFavorite)
-                    _favorites.Add(photo.FilePath);
-                else
-                    _favorites.Remove(photo.FilePath);
+                case nameof(Photo.IsSelected):
+                    DeletePhotosCommand.NotifyCanExecuteChanged();
+                    break;
 
-                _favoriteService.SaveFavorites(_favorites);
-                PhotosView.Refresh();
+                case nameof(Photo.IsFavorite):
+                    if (photo.IsFavorite)
+                        _favorites.Add(photo.FilePath);
+                    else
+                        _favorites.Remove(photo.FilePath);
+
+                    _favoriteService.SaveFavorites(_favorites);
+                    PhotosView.Refresh(); // refresh filter if showing favorites
+                    break;
             }
-
-            if (e.PropertyName == nameof(Photo.IsSelected))
-                DeletePhotosCommand.NotifyCanExecuteChanged();
-
-            if (e.PropertyName == nameof(Photo.IsFavorite))
-                PhotosView.Refresh(); // re-run filter so Favorites view updates instantly
         }
+
+        private bool CanDeleteSelectedPhotos() => Photos.Any(p => p.IsSelected);
+
+ 
 
         private void ChooseAndLoadPhotos()
         {
-            System.Diagnostics.Debug.WriteLine("Browse button clicked!");
-
             var dialog = new Microsoft.WindowsAPICodePack.Dialogs.CommonOpenFileDialog
             {
                 IsFolderPicker = true,
@@ -115,11 +98,11 @@ namespace PhotoManager.App.ViewModels
             if (result == Microsoft.WindowsAPICodePack.Dialogs.CommonFileDialogResult.Ok)
             {
                 SelectedDirectory = dialog.FileName;
-                LoadPhotos(SelectedDirectory);
+                LoadPhotosAsync(SelectedDirectory);
             }
         }
 
-        private async void LoadPhotos(string directory)
+        private async void LoadPhotosAsync(string directory)
         {
             if (!Directory.Exists(directory))
             {
@@ -133,9 +116,8 @@ namespace PhotoManager.App.ViewModels
             try
             {
                 var supportedExtensions = new[] { ".jpg", ".jpeg", ".png", ".bmp", ".gif" };
-
-                var files = Directory.EnumerateFiles(directory, "*.*", System.IO.SearchOption.AllDirectories)
-                    .Where(f => supportedExtensions.Contains(Path.GetExtension(f).ToLower()));
+                var files = Directory.EnumerateFiles(directory, "*.*", SearchOption.AllDirectories)
+                                     .Where(f => supportedExtensions.Contains(Path.GetExtension(f).ToLower()));
 
                 await Task.Run(() =>
                 {
@@ -147,15 +129,13 @@ namespace PhotoManager.App.ViewModels
                             FileName = Path.GetFileName(file),
                             IsFavorite = _favorites.Contains(file)
                         };
-                        photo.LoadThumbnail(); // load into memory, release file handle
+
+                        photo.LoadThumbnail();
                         photo.PropertyChanged += Photo_PropertyChanged;
 
-                        // Add to collection on UI thread
                         App.Current.Dispatcher.Invoke(() => Photos.Add(photo));
-
                     }
                 });
-                
 
                 StatusMessage = Photos.Count > 0
                     ? $"Loaded {Photos.Count} photos from {directory} (including subfolders)"
@@ -170,6 +150,8 @@ namespace PhotoManager.App.ViewModels
                 StatusMessage = $"Error while loading photos: {ex.Message}";
             }
         }
+
+
 
         private void DeleteSelectedPhotos()
         {
@@ -189,7 +171,6 @@ namespace PhotoManager.App.ViewModels
                     {
                         RecycleBinHelper.MoveToRecycleBin(photo.FilePath);
                     }
-
                     Photos.Remove(photo);
                     deletedCount++;
                 }
@@ -204,39 +185,22 @@ namespace PhotoManager.App.ViewModels
         }
 
 
-        partial void OnSelectedMenuChanged(string value)
-        {
-            PhotosView.Refresh(); // re-run filter when sidebar changes
-        }
-
-        private bool FilterPhotos(object obj)
+        public bool FilterPhotos(object obj)
         {
             if (obj is not Photo photo) return false;
 
-            return SelectedMenu switch
+            // Assume SidebarViewModel.SelectedMenu is passed in and triggers PhotosView.Refresh()
+            var selectedMenu = App.Current.MainWindow.DataContext is MainWindowViewModel mwvm
+                               ? mwvm.Sidebar.SelectedMenu
+                               : "Library";
+
+            return selectedMenu switch
             {
                 "Favorite" => photo.IsFavorite,
-                _ => true // Library shows all
+                _ => true
             };
         }
 
-        private void LoadPhotosFromDirectory(string folderPath)
-        {
-            // When loading, check if each photo path is in favorites
-            foreach (var file in Directory.EnumerateFiles(folderPath, "*.*", SearchOption.AllDirectories))
-            {
-                var photo = new Photo
-                {
-                    FilePath = file,
-                    FileName = Path.GetFileName(file),
-                    // ... set FileSize, Dimensions, Thumbnail
-                    IsFavorite = _favorites.Contains(file)   // Restore favorite state
-                };
-
-                photo.PropertyChanged += Photo_PropertyChanged;
-                Photos.Add(photo);
-            }
-        }
 
     }
 }

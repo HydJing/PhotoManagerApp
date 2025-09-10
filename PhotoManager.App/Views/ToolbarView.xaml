@@ -1,0 +1,11 @@
+<UserControl x:Class="PhotoManager.App.Views.ToolbarView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Height="50" Background="#FFF0F0F0">
+    <StackPanel Orientation="Horizontal" Margin="10,5">
+        <Button Content="Browse Photos" Command="{Binding LoadPhotosCommand}" Margin="0,0,10,0"/>
+        <Button Content="Delete Selected" Command="{Binding DeletePhotosCommand}" Margin="0,0,10,0"/>
+        <TextBlock Text="{Binding SelectedDirectory}" VerticalAlignment="Center"
+                   TextTrimming="CharacterEllipsis" Width="400"/>
+    </StackPanel>
+</UserControl>
