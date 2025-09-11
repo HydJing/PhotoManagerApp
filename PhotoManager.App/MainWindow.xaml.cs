@@ -6,24 +6,18 @@ namespace PhotoManager.App
 {
     public partial class MainWindow : Window
     {
-        // DI will call this constructor and supply the MainWindowViewModel
-        public MainWindow(MainWindowViewModel viewModel)
+        public MainWindow()
         {
             InitializeComponent();
-            DataContext = viewModel;
+            // Create a single PhotoGalleryViewModel instance to share across all child viewmodels
+            var photoGalleryViewModel = new PhotoGalleryViewModel();
 
-            // Debug: show what DataContext is
-            Loaded += (s, e) =>
-            {
-                if (DataContext is MainWindowViewModel vm)
-                {
-                    MessageBox.Show($"DataContext OK. Sidebar Menu Count: {vm.Sidebar.MenuItems.Count}");
-                }
-                else
-                {
-                    MessageBox.Show("DataContext is NULL!");
-                }
-            };
+            DataContext = new MainWindowViewModel(
+                new SidebarViewModel(photoGalleryViewModel),
+                photoGalleryViewModel,
+                new ToolbarViewModel(photoGalleryViewModel),
+                new StatusBarViewModel(photoGalleryViewModel)
+            );
         }
     }
 }
