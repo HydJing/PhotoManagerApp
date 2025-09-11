@@ -4,7 +4,7 @@ using Microsoft.Extensions.Hosting;
 using System;
 using System.IO;
 using System.Windows;
-using PhotoManager.App.ViewModels;
+using PhotoManager.App.ViewModels; // Ensure this is present
 
 namespace PhotoManager.App
 {
@@ -22,8 +22,15 @@ namespace PhotoManager.App
                 })
                 .ConfigureServices((context, services) =>
                 {
-                    // Register your ViewModel for DI
                     services.AddSingleton<PhotoGalleryViewModel>();
+                    services.AddSingleton<SidebarViewModel>();
+                    services.AddSingleton<ToolbarViewModel>();
+                    services.AddSingleton<StatusBarViewModel>();
+
+                    // Register MainWindowViewModel after children (order not strictly required but clear)
+                    services.AddSingleton<MainWindowViewModel>();
+
+                    // Register MainWindow itself so DI constructs it with injected MainWindowViewModel
                     services.AddSingleton<MainWindow>();
                 })
                 .Build();
@@ -33,8 +40,8 @@ namespace PhotoManager.App
         {
             await AppHost!.StartAsync();
 
+            // Let DI create MainWindow (it will inject MainWindowViewModel)
             var mainWindow = AppHost.Services.GetRequiredService<MainWindow>();
-            mainWindow.DataContext = AppHost.Services.GetRequiredService<PhotoGalleryViewModel>();
             mainWindow.Show();
 
             base.OnStartup(e);

@@ -43,6 +43,9 @@ namespace PhotoManager.App.ViewModels
             DeletePhotosCommand = new RelayCommand(DeleteSelectedPhotos, CanDeleteSelectedPhotos);
 
             Photos.CollectionChanged += Photos_CollectionChanged;
+
+            // debug datad
+            Photos.Add(new Photo { FileName = "Test.jpg", FileSize = "100 KB", Dimensions = "800x600" });
         }
 
 
@@ -190,9 +193,9 @@ namespace PhotoManager.App.ViewModels
             if (obj is not Photo photo) return false;
 
             // Assume SidebarViewModel.SelectedMenu is passed in and triggers PhotosView.Refresh()
-            var selectedMenu = App.Current.MainWindow.DataContext is MainWindowViewModel mwvm
-                               ? mwvm.Sidebar.SelectedMenu
-                               : "Library";
+            var selectedMenu = (App.Current?.MainWindow?.DataContext is MainWindowViewModel mwvm)
+                   ? mwvm.Sidebar.SelectedMenu
+                   : "Library";
 
             return selectedMenu switch
             {
