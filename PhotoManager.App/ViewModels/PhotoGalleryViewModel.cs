@@ -43,9 +43,6 @@ namespace PhotoManager.App.ViewModels
             DeletePhotosCommand = new RelayCommand(DeleteSelectedPhotos, CanDeleteSelectedPhotos);
 
             Photos.CollectionChanged += Photos_CollectionChanged;
-
-            // debug datad
-            Photos.Add(new Photo { FileName = "Test.jpg", FileSize = "100 KB", Dimensions = "800x600" });
         }
 
 
